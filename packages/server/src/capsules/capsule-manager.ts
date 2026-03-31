@@ -7,9 +7,11 @@
  *   composite — Combines multiple capsules; optionally summarised when over token limit.
  */
 
+import { createHash } from 'node:crypto';
 import { nanoid } from 'nanoid';
 import { all, get, run } from '../db.js';
 import { logger } from '../logger.js';
+import { computeStaleness, buildFreshnessCaveat, buildCapsuleManifest } from './capsule-staleness.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -176,6 +178,7 @@ export function updateCapsuleContent(id: string, newContent: string): Capsule | 
   const now = new Date().toISOString();
   const newVersion = existing.version + 1;
   const tokenCount = estimateTokenCount(newContent);
+  const contentHash = createHash('sha256').update(newContent).digest('hex');
 
   // Persist old version before overwriting
   run(
@@ -193,10 +196,19 @@ export function updateCapsuleContent(id: string, newContent: string): Capsule | 
     }
   }
 
-  run(
-    `UPDATE capsules SET content = ?, token_count = ?, version = ?, updated_at = ?, expires_at = ? WHERE id = ?`,
-    [newContent, tokenCount, newVersion, now, expiresAt, id]
-  );
+  // Store content_hash if column exists (added in v1.8 migration); fall back gracefully
+  try {
+    run(
+      `UPDATE capsules SET content = ?, token_count = ?, version = ?, updated_at = ?, expires_at = ?, content_hash = ? WHERE id = ?`,
+      [newContent, tokenCount, newVersion, now, expiresAt, contentHash, id]
+    );
+  } catch {
+    // content_hash column not yet present — update without it
+    run(
+      `UPDATE capsules SET content = ?, token_count = ?, version = ?, updated_at = ?, expires_at = ? WHERE id = ?`,
+      [newContent, tokenCount, newVersion, now, expiresAt, id]
+    );
+  }
 
   const updated = get<CapsuleRow>(`SELECT * FROM capsules WHERE id = ?`, [id])!;
   return rowToCapsule(updated);
@@ -496,4 +508,37 @@ export async function loadCapsulesForAgent(
   }
 
   return parts.join('\n\n---\n\n');
+}
+
+// ── Staleness-aware helpers ───────────────────────────────────────────────────
+
+/**
+ * Return a capsule enriched with staleness info and an optional freshness caveat.
+ */
+export function getCapsuleWithStaleness(id: string): (Capsule & {
+  staleness: ReturnType<typeof computeStaleness>;
+  caveat: string | null;
+}) | null {
+  const capsule = getCapsule(id);
+  if (!capsule) return null;
+
+  const staleness = computeStaleness(capsule.updatedAt);
+  const caveat = buildFreshnessCaveat(capsule.name, staleness);
+
+  return { ...capsule, staleness, caveat };
+}
+
+/**
+ * Return a single-string manifest of all active capsules for a company.
+ * Suitable for injecting as a pointer index into agent prompts.
+ */
+export function getCompanyCapsuleManifest(companyId: string): string {
+  const capsules = listCapsules(companyId);
+  return buildCapsuleManifest(capsules.map(c => ({
+    id: c.id,
+    name: c.name,
+    type: c.type,
+    priority: 'memory', // capsules table has no priority column; default to 'memory'
+    updatedAt: c.updatedAt ?? c.createdAt,
+  })));
 }
