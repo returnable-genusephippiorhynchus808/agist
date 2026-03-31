@@ -12,6 +12,7 @@ import { get, all } from '../db.js';
 import { requireRole } from '../middleware/rbac.js';
 import { generateDigest, type DailyDigest } from '../digest/generate-digest.js';
 import { logger } from '../logger.js';
+import { compactOldDigests } from '../capsules/capsule-pruning.js';
 
 export const digestRouter = new Hono();
 
@@ -173,6 +174,32 @@ digestRouter.post(
     } catch (err) {
       logger.error('digest/generate: failed', { companyId: cid, error: String(err) });
       return c.json({ error: 'Failed to generate digest' }, 500);
+    }
+  }
+);
+
+// POST /api/companies/:cid/digest/compact — compact old digests (keeps summary only)
+digestRouter.post(
+  '/api/companies/:cid/digest/compact',
+  requireRole('admin'),
+  (c) => {
+    const cid = c.req.param('cid');
+    if (!cid) {
+      return c.json({ error: 'Company ID required' }, 400);
+    }
+
+    const company = get(`SELECT id FROM companies WHERE id = ?`, [cid]);
+    if (!company) {
+      return c.json({ error: 'Company not found' }, 404);
+    }
+
+    try {
+      const compacted = compactOldDigests(cid, 30);
+      logger.info('digest/compact: completed', { companyId: cid, compacted });
+      return c.json({ compacted, message: `${compacted} digest${compacted !== 1 ? 's' : ''} compacted` });
+    } catch (err) {
+      logger.error('digest/compact: failed', { companyId: cid, error: String(err) });
+      return c.json({ error: 'Failed to compact digests' }, 500);
     }
   }
 );
