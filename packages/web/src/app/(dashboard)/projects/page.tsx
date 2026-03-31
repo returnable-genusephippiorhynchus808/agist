@@ -76,7 +76,7 @@ export default function ProjectsPage() {
 
   // Fetch projects for all companies
   const { data: projectsByCompany, isLoading } = useQuery({
-    queryKey: ["all-projects", companies?.map((c: Company) => c.id)],
+    queryKey: ["all-projects", Array.isArray(companies) ? companies.map((c: Company) => c.id) : []],
     queryFn: async () => {
       if (!companies || companies.length === 0) return []
       const results = await Promise.all(
