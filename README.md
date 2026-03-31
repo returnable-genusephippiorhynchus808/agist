@@ -81,10 +81,14 @@ Agist is the operations layer you add on top of your existing agents:
 
 - **One dashboard** — see every agent, every run, and every dollar spent in real time
 - **Approval gates** — define which actions require a human yes before they execute
+- **Auto-gates** — supervised agents automatically create approval gates for destructive actions
 - **Budget guardrails** — per-agent monthly/daily/per-run cost caps with auto-pause
 - **Signal bus** — one agent's output triggers the next, without a message broker
-- **Context capsules** — per-agent knowledge blocks agents read before each run
-- **Audit log** — every state change, approval decision, and budget event, permanently recorded
+- **Context capsules** — per-agent knowledge blocks with staleness tracking, consolidation, and version pruning
+- **Agent permissions** — layered trust model (autonomous / supervised / readonly / custom) with company-level inheritance
+- **Write discipline** — signal dedup, content-hash guards, output quality gates prevent data pollution
+- **Memory consolidation** — automatic cross-session capsule synthesis with gate-stack scheduling
+- **Audit log** — every state change, approval decision, and budget event with decision reasons, permanently recorded
 - **Multi-adapter** — works with Claude CLI, Anthropic API, OpenAI, or a mock adapter for testing
 
 All of this runs on SQLite. One Node.js process. One Docker container.
@@ -100,13 +104,15 @@ All of this runs on SQLite. One Node.js process. One Docker container.
 | Zero-config database | SQLite | Python deps | — | PostgreSQL | — |
 | Budget tracking per agent | Yes | No | No | Text only | No |
 | Approval gates | Yes | No | No | No | No |
+| Agent permission model | Yes | No | No | No | No |
+| Memory consolidation | Yes | No | No | No | No |
 | Multi-adapter (Claude + OpenAI) | Yes | Limited | Yes | No | No |
-| Audit log | Yes | No | No | No | No |
+| Audit log with decision reasons | Yes | No | No | No | No |
 | Single Docker deploy | Yes | No | No | No | No |
 | Works without writing code | Yes | No | No | No | No |
 | Price | Free & open source | Free / $99+/mo SaaS | Free | Free | Free |
 
-The single differentiator no competitor has simultaneously: **production-ready dashboard + zero infrastructure + budget enforcement + approval gates**.
+The single differentiator no competitor has simultaneously: **production-ready dashboard + zero infrastructure + budget enforcement + approval gates + agent permission model + memory consolidation**.
 
 ---
 
@@ -136,7 +142,7 @@ See live status, run history, token usage, and cost per agent. The status board 
 
 Set a monthly budget per company in cents. Agist tracks cumulative run cost and blocks new runs when the limit is reached — not just alerts, but hard enforcement. The dashboard shows a per-agent cost chart and daily breakdown.
 
-### Approval Gates
+### Approval Gates with Auto-Creation
 
 ```
 Agent wants to execute an action → Agist creates a pending gate
@@ -145,15 +151,65 @@ Agent wants to execute an action → Agist creates a pending gate
                                  → Agent continues or stops
 ```
 
-Gate types, titles, descriptions, and payloads are all stored and visible. Every decision is timestamped and logged.
+Gate types, titles, descriptions, and payloads are all stored and visible. Every decision is timestamped, logged with a **decision reason**, and recorded in the audit log.
+
+**Auto-gates:** Agents in `supervised` permission mode automatically create approval gates when attempting destructive actions (deploy, delete, budget changes). No manual gate creation needed — the platform enforces the policy.
 
 ### Signal Bus — Agent-to-Agent Workflows
 
 Agents post signals (`product-update`, `market-trend`, `alert`, `kpi-change`, etc.) that other agents consume. No message broker. No Kafka. Signal state lives in SQLite. An agent calls `GET /api/companies/:id/signals/unconsumed/:agentId` before each run to pick up what it missed.
 
-### Context Capsules
+### Context Capsules with Staleness Tracking
 
-Each agent can have a persistent context capsule — a markdown string up to 10,000 characters — that is injected into the agent's prompt context before each run. Update it via the dashboard or API. Useful for brand voice, recent metrics, team instructions.
+Each agent can have persistent context capsules — typed knowledge blocks injected into the agent's prompt before each run. Capsules come in three types:
+
+- **Static** — human-written, manually updated
+- **Dynamic** — auto-refreshed from agent output
+- **Composite** — combines multiple capsules
+
+Capsules support **staleness-aware recall**: each capsule carries a human-readable freshness label ("3 days ago", "2 weeks ago") and stale capsules (30+ days) get a warning caveat injected alongside the content. A **capsule manifest** provides a one-line-per-capsule index sorted by priority (instruction > memory > ephemeral), following the pointer-based index pattern.
+
+### Memory Consolidation Engine
+
+Agist automatically consolidates capsule content across sessions using a gate-stack scheduler inspired by biological memory consolidation:
+
+1. **Scan throttle** — evaluate at most once per 10 minutes
+2. **Time gate** — at least 24 hours since last consolidation
+3. **Run count gate** — at least 5 completed runs since last consolidation
+4. **Lock gate** — distributed lock prevents concurrent consolidations (stale lock detection at 60 minutes)
+
+When all gates pass, the consolidation engine reads all active capsules, identifies stale content, and synthesizes updated versions. Lock rollback on failure ensures the system self-heals.
+
+### Version Pruning and Compaction
+
+Multi-speed compaction prevents unbounded storage growth:
+
+- **Capsule version pruning** — keeps the last 10 versions with full content; older versions are replaced with a pointer to the latest
+- **Digest compaction** — digests older than 30 days are compacted to summary-only (detail fields stripped)
+- **Run log tiering** — 0-7 days: full log; 7-30 days: truncated to 1,000 chars; 30+ days: metadata only
+
+### Agent Permission Model
+
+A layered trust model controls what each agent can do:
+
+| Mode | Behavior |
+|------|----------|
+| `autonomous` | All actions permitted, no approval gates |
+| `supervised` | Destructive actions (deploy, delete) auto-create approval gates |
+| `readonly` | Agent can only perform read/wake operations |
+| `custom` | Per-agent capability list governs allowed actions |
+
+Permission inheritance flows **Company > Agent** — a paused or archived company forces all its agents to readonly, regardless of their individual mode. Permission checks use a cheapest-first gate stack: status check (in-memory) > mode check (single column) > budget check (computed) > capability parse (JSON, most expensive).
+
+### Write Discipline
+
+Every write path is guarded by independent gates that default to "do nothing":
+
+- **Signal dedup** — duplicate signals (same type + agent + title within 1 hour) are rejected with 409
+- **Capsule content-hash guard** — PUT requests with identical content (SHA-256 match) return immediately without creating a new version
+- **Mutual exclusion** — auto-refresh is blocked for 5 minutes after a manual capsule update
+- **Output quality gate** — run outputs with confidence < 0.5 are rejected (HTTP 422) instead of persisted
+- **Digest generation mutex** — prevents concurrent digest generation for the same company
 
 ### Cron Scheduling
 
@@ -191,7 +247,9 @@ Pause a company to stop all agent runs immediately. Useful for cost control inci
 - Structured JSON logging with configurable `LOG_LEVEL`
 - `X-Request-Id` correlation header on every API request
 - Prometheus-compatible metrics at `/api/metrics` (HTTP counters, run counters, token counters)
-- Run log excerpts capped at 50K characters to prevent runaway storage
+- Run log tiering: full logs (7 days) > truncated (30 days) > metadata only (30+ days)
+- Budget cache with 60-second TTL for scheduler performance
+- Webhook delivery cache with 30-second TTL for enabled state
 
 ---
 
@@ -226,6 +284,9 @@ Pause a company to stop all agent runs immediately. Useful for cost control inci
 │          http://localhost:4400                │
 │                                              │
 │  REST API  │  WebSocket  │  SSE  │ Scheduler │
+│            │             │       │           │
+│  Agent Permissions  │  Write Discipline      │
+│  Memory Consolidation  │  Version Pruning    │
 └─────────────────────┬────────────────────────┘
                       │
 ┌─────────────────────┴────────────────────────┐
@@ -234,6 +295,8 @@ Pause a company to stop all agent runs immediately. Useful for cost control inci
 │             ~/.agist/data.db                  │
 │                                              │
 │  companies  agents  runs  gates  audit_log   │
+│  capsules  capsule_versions  signals         │
+│  capsule_consolidation  digests              │
 └─────────────────────┬────────────────────────┘
                       │
 ┌─────────────────────┴────────────────────────┐
@@ -254,7 +317,7 @@ Pause a company to stop all agent runs immediately. Useful for cost control inci
 | Real-time | WebSocket + SSE | Bidirectional logs + unidirectional status events |
 | Scheduler | cron-parser + setInterval | No external deps, runs every 30s |
 | IDs | nanoid | URL-safe, 21 chars |
-| Testing | Vitest (505 tests) + Playwright (59 E2E tests) | Full coverage |
+| Testing | Vitest (782 tests) + Playwright (59 E2E tests) | Full coverage |
 
 ### Monorepo Layout
 
@@ -264,6 +327,9 @@ packages/
   shared/    — TypeScript types, Zod validators, constants
   db/        — SQLite schema, migrations, queries, seed data
   server/    — Hono API (port 4400), WebSocket, SSE, scheduler, adapters
+    capsules/  — capsule-manager, capsule-staleness, capsule-consolidation, capsule-pruning
+    middleware/ — auth, rbac, rate-limit, agent-permissions
+    adapters/  — claude-cli, anthropic-api, openai, mock + AdapterDef interface
   web/       — Next.js dashboard (port 3004)
 ```
 
@@ -308,11 +374,14 @@ PUT    /api/agents/:id/context          update context capsule
 
 ### Runs
 ```
-GET    /api/runs                        list (paginated, ?status=, ?agentId=, ?from=, ?to=)
+GET    /api/runs                        list (paginated, ?status=, ?agentId=, ?from=, ?to=, ?include_system=true)
+GET    /api/runs/system                 system/background runs only
 GET    /api/runs/:id                    run detail with log excerpt
 GET    /api/agents/:id/runs             runs for one agent
 DELETE /api/agents/:id/runs             bulk delete (?olderThan=30d, ?status=failed)
 ```
+
+System runs (source=`system`) are hidden from default listings. Pass `?include_system=true` to include them, or use the dedicated `/api/runs/system` endpoint.
 
 ### Approval Gates
 ```
@@ -331,10 +400,33 @@ GET    /api/companies/:cid/signals/unconsumed/:agentId  unconsumed signals for a
 POST   /api/companies/:cid/signals/:id/consume  mark consumed
 ```
 
+### Capsules
+```
+GET    /api/companies/:cid/capsules     list capsules
+POST   /api/companies/:cid/capsules     create {type, name, content, config?}
+GET    /api/capsules/:id                get capsule with staleness info
+PUT    /api/capsules/:id                update (content-hash dedup, auto last_manual_update_at)
+DELETE /api/capsules/:id                soft delete
+POST   /api/capsules/:id/refresh        refresh dynamic/composite (mutual exclusion: blocked 5min after manual update)
+GET    /api/capsules/:id/versions       version history
+GET    /api/capsules/:id/versions/:v    specific version
+```
+
+### Digest
+```
+GET    /api/companies/:cid/digest       today's digest
+GET    /api/companies/:cid/digest/:date specific date
+POST   /api/companies/:cid/digest/generate   manual trigger
+POST   /api/companies/:cid/digest/compact    compact old digests (>30 days → summary only)
+GET    /api/companies/:cid/digest/range      date range (?from=, ?to=)
+```
+
 ### Audit Log
 ```
 GET    /api/companies/:cid/audit        list entries (paginated, ?action=, ?agent_id=)
 ```
+
+Audit entries include `decision_reason` for traceable approval decisions.
 
 ### System
 ```
@@ -395,7 +487,19 @@ What is shipped:
 - [x] Prometheus metrics
 - [x] CLI (setup, start, status, logs)
 - [x] Docker + Caddy deploy
-- [x] 505 unit/integration tests + 59 E2E tests
+- [x] 782 unit/integration tests + 59 E2E tests
+- [x] Agent permission model (autonomous / supervised / readonly / custom)
+- [x] Auto-gate creation for supervised agents
+- [x] Write discipline (signal dedup, content-hash guard, output quality gate)
+- [x] Capsule staleness tracking with human-readable labels
+- [x] Memory consolidation engine (gate-stack scheduler)
+- [x] Capsule version pruning and digest compaction
+- [x] Run log tiering (full / truncated / archived)
+- [x] Silent system runs (hidden from default dashboard)
+- [x] Standardized adapter interface (AdapterDef)
+- [x] Budget cache and gate-stack ordering for scheduler performance
+- [x] Mutual exclusion between manual and auto capsule updates
+- [x] Audit log with decision reasons
 
 What is next:
 
@@ -403,6 +507,8 @@ What is next:
 - [ ] Multi-user authentication (RBAC with invite flow)
 - [ ] Capsule versioning UI
 - [ ] Public agent marketplace / template registry
+- [ ] LLM-powered capsule consolidation (Anthropic API integration)
+- [ ] Capsule relevance-gated injection (select top-N capsules per run)
 
 See [ROADMAP.md](ROADMAP.md) for the full backlog.
 
@@ -441,7 +547,7 @@ git clone https://github.com/tahakotil/agist.git
 cd agist
 pnpm install
 pnpm dev         # backend:4400 + frontend:3004
-pnpm test        # 505 tests
+pnpm test        # 782 tests
 pnpm test:e2e    # 59 Playwright tests
 ```
 
