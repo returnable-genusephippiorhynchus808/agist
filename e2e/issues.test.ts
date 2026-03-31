@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-const API = 'http://localhost:4400/api'
+const API = 'http://localhost:4401/api'
 
 test.describe('Issues', () => {
   test('issues page loads with heading', async ({ page }) => {

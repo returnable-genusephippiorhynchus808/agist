@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-const API = 'http://localhost:4400/api'
+const API = 'http://localhost:4401/api'
 
 test.describe('Real-time updates', () => {
   test('dashboard loads and shows agent fleet', async ({ page }) => {

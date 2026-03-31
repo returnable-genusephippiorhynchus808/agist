@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-const API = 'http://localhost:4400/api'
+const API = 'http://localhost:4401/api'
 
 async function createTestCompany(request: { post: (url: string, options: { data: unknown }) => Promise<{ json: () => Promise<{ company: { id: string } }> }> }, name: string) {
   const res = await request.post(`${API}/companies`, {
