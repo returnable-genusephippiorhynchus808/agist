@@ -41,7 +41,7 @@ import { rateLimit } from './middleware/rate-limit.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const PORT = parseInt(process.env.PORT ?? '4400', 10);
+const PORT = parseInt(process.env.PORT ?? '4401', 10);
 
 const app = new Hono();
 
@@ -49,6 +49,7 @@ const app = new Hono();
 const corsOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map((s) => s.trim())
   : [
+      'http://localhost:3003',
       'http://localhost:3004',
       'http://localhost:3000',
       'http://localhost:4400',

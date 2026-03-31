@@ -21,8 +21,8 @@ interface ApiKeyRow {
  */
 export function authMiddleware() {
   return async (c: Context, next: Next) => {
-    // Skip auth in local dev when explicitly disabled
-    if (process.env.AGIST_AUTH_DISABLED === 'true') {
+    // Skip auth in local dev (default: disabled unless explicitly set to 'false')
+    if (process.env.AGIST_AUTH_DISABLED !== 'false') {
       c.set('role', 'admin')
       return next()
     }

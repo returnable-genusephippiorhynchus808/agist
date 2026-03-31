@@ -12,7 +12,7 @@ import type { Context, Next } from 'hono'
 export function requireRole(role: 'admin' | 'readonly') {
   return async (c: Context, next: Next) => {
     // Auth disabled globally — treat every caller as admin
-    if (process.env.AGIST_AUTH_DISABLED === 'true') {
+    if (process.env.AGIST_AUTH_DISABLED !== 'false') {
       return next()
     }
 
