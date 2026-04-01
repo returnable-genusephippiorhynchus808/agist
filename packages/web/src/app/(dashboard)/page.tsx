@@ -30,7 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { relativeTime, formatDuration, formatCost, cn } from "@/lib/utils"
+import { relativeTime, formatDuration, formatCost, cn, cleanLogExcerpt } from "@/lib/utils"
 import { Bot, Play, CheckCircle, DollarSign, AlertTriangle, BookOpen, ArrowRight, Activity, XCircle, FileText } from "lucide-react"
 import { toast } from "sonner"
 
@@ -359,7 +359,7 @@ export default function DashboardPage() {
                     )}
                     {!run.error && run.logExcerpt && (
                       <p className="text-xs text-slate-500 mt-0.5 truncate font-mono">
-                        {run.logExcerpt.slice(0, 200)}
+                        {cleanLogExcerpt(run.logExcerpt, 200)}
                       </p>
                     )}
                   </div>

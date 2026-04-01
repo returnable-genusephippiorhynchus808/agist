@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { relativeTime, formatCost, cn } from "@/lib/utils"
+import { relativeTime, formatCost, cn, cleanLogExcerpt } from "@/lib/utils"
 import type { Agent } from "@/lib/api"
 import { Play, Pause, FileText, Clock, CheckCircle, XCircle } from "lucide-react"
 import Link from "next/link"
@@ -144,9 +144,9 @@ export function AgentCard({ agent, lastRun, onWake, onPause }: AgentCardProps) {
                 {lastRun.error.slice(0, 100)}
               </p>
             )}
-            {!lastRun.error && lastRun.logExcerpt && (
+            {!lastRun.error && lastRun.logExcerpt && cleanLogExcerpt(lastRun.logExcerpt, 120) && (
               <p className="text-[11px] text-slate-500 font-mono line-clamp-2 leading-relaxed">
-                {lastRun.logExcerpt.slice(0, 120)}
+                {cleanLogExcerpt(lastRun.logExcerpt, 120)}
               </p>
             )}
           </div>

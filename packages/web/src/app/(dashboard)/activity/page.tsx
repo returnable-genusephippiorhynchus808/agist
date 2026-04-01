@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { relativeTime, formatDuration, formatCost } from "@/lib/utils"
+import { relativeTime, formatDuration, formatCost, cleanLogExcerpt } from "@/lib/utils"
 import {
   Activity,
   CheckCircle,
@@ -47,7 +47,7 @@ const STATUS_BADGE: Record<string, string> = {
 function ActivityItem({ run }: { run: Run }) {
   const statusInfo = STATUS_ICON[run.status] ?? STATUS_ICON.queued
   const StatusIcon = statusInfo.icon
-  const logPreview = run.logExcerpt?.replace(/\\n/g, "\n")?.trim() || ""
+  const logPreview = cleanLogExcerpt(run.logExcerpt, 500)
 
   return (
     <Card className="bg-slate-900 border-slate-800 hover:border-slate-700 transition-colors">

@@ -43,6 +43,40 @@ export function modelColor(model: string): string {
   }
 }
 
+/**
+ * Clean raw log excerpt for display:
+ * - Unescape \n to real newlines
+ * - Strip JSON stream objects (Claude CLI output format)
+ * - Strip base64 binary data blobs
+ * - Collapse excessive whitespace
+ */
+export function cleanLogExcerpt(raw?: string | null, maxLen = 300): string {
+  if (!raw) return ""
+  let text = raw
+    // Unescape literal \n
+    .replace(/\\n/g, '\n')
+    // Remove JSON stream objects like {"type":"assistant","message":{...}}
+    .replace(/\{"type":"(?:assistant|human|system|tool_use|tool_result|content_block_(?:start|delta|stop)|message_(?:start|delta|stop))".+?\}(?:\n?)/g, '')
+    // Remove base64 data blobs (40+ chars of base64)
+    .replace(/[A-Za-z0-9+/=]{40,}/g, '[binary data]')
+    // Remove [... truncated ...]
+    .replace(/\[\.\.\.?\s*truncated\s*\.\.\.?\]/gi, '')
+    // Collapse multiple blank lines
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  if (text.length > maxLen) text = text.slice(0, maxLen) + '...'
+  return text
+}
+
+/**
+ * Clean context capsule text for display:
+ * - Unescape \n to real newlines
+ */
+export function cleanCapsuleText(raw?: string | null): string {
+  if (!raw) return ""
+  return raw.replace(/\\n/g, '\n').trim()
+}
+
 export function statusColor(status: string): string {
   switch (status) {
     case "idle":

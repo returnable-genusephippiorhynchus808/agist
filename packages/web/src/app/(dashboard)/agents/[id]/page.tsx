@@ -15,7 +15,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { LogViewer } from "@/components/log-viewer"
-import { relativeTime, formatDuration, formatCost, cn } from "@/lib/utils"
+import { relativeTime, formatDuration, formatCost, cn, cleanCapsuleText } from "@/lib/utils"
 import {
   ArrowLeft,
   Bot,
@@ -222,7 +222,7 @@ export default function AgentDetailPage({ params }: PageProps) {
     enabled: !!id,
   })
 
-  const apiCapsule = contextData?.capsule?.replace(/\\n/g, '\n') ?? ""
+  const apiCapsule = cleanCapsuleText(contextData?.capsule)
   const currentCapsule = capsuleText ?? apiCapsule
 
   async function handleSaveCapsule() {

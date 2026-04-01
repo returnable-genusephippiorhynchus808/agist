@@ -9,7 +9,7 @@ import { buttonVariants, Button } from "@/components/ui/button"
 import { OrgChart } from "@/components/org-chart"
 import { AgentCard } from "@/components/agent-card"
 import { Building2, Clock, DollarSign, Bot, ArrowLeft, Radio, CheckCircle2, XCircle, Loader2, PauseCircle, Download, FileText } from "lucide-react"
-import { formatCost, relativeTime, cn } from "@/lib/utils"
+import { formatCost, relativeTime, cn, cleanLogExcerpt, cleanCapsuleText } from "@/lib/utils"
 import Link from "next/link"
 import { toast } from "sonner"
 
@@ -330,7 +330,7 @@ export default function CompanyDetailPage({ params }: PageProps) {
           <div className="space-y-3">
             {agents.map((agent) => {
               const lastRun = agentRuns?.[agent.id]
-              const capsule = agent.contextCapsule?.replace(/\n/g, "\n") || ""
+              const capsule = cleanCapsuleText(agent.contextCapsule)
               const statusBadgeCls =
                 agent.status === "running"  ? "bg-blue-500/15 text-blue-400 border border-blue-500/30" :
                 agent.status === "error"    ? "bg-red-500/15 text-red-400 border border-red-500/30" :
@@ -374,7 +374,7 @@ export default function CompanyDetailPage({ params }: PageProps) {
                         </div>
                         {lastRun.logExcerpt && (
                           <pre className="text-[11px] text-slate-500 font-mono bg-slate-950 rounded p-2 max-h-20 overflow-y-auto whitespace-pre-wrap leading-relaxed">
-                            {lastRun.logExcerpt.slice(0, 300)}
+                            {cleanLogExcerpt(lastRun.logExcerpt, 300)}
                           </pre>
                         )}
                         {lastRun.error && (
