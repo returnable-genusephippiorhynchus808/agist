@@ -6,11 +6,13 @@ dist/
 *.db-wal
 .env
 .env.local
+.env.development
 .DS_Store
 *.log
 .turbo/
 .pnpmfile.cjs
 coverage/
+test-results/
 
 # Claude Code / internal planning (keep local, not in repo)
 **/CLAUDE.md

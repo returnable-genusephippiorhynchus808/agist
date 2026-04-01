@@ -2,148 +2,131 @@
 
 ---
 
-## v0.1.0 — Current MVP (released)
+## v0.1.0 — MVP (shipped)
 
-Core infrastructure for local multi-agent orchestration.
-
-**Completed:**
-- Hono HTTP API (companies, agents, routines, runs, issues)
-- SQLite persistence via sql.js (WAL mode, auto-save every 30s)
-- Scheduler: cron-based routine heartbeats (cron-parser v5, 30s check interval)
-- Claude CLI adapter: spawn, stream stdout, parse stream-json tokens, estimate cost
-- WebSocket live log viewer (subscribe per agent or wildcard `*`)
-- SSE events for agent status and run completion
-- Next.js 16 dashboard (shadcn/ui, Tremor charts, React Flow org chart)
-- Skill injection: agent context written to temp `.claude/skills/SKILL.md` and passed via `--add-dir`
-- Seed script with Acme Corp demo data
+- [x] Hono HTTP API (companies, agents, routines, runs, issues)
+- [x] SQLite persistence via sql.js (WAL mode, auto-save every 30s)
+- [x] Scheduler: cron-based routine heartbeats (30s check interval)
+- [x] Claude CLI adapter: spawn, stream stdout, parse tokens, estimate cost
+- [x] WebSocket live log viewer (subscribe per agent or wildcard `*`)
+- [x] SSE events for agent status and run completion
+- [x] Next.js 16 dashboard (shadcn/ui, Tremor charts, React Flow org chart)
+- [x] Seed script with Acme Corp demo data
 
 ---
 
-## v0.2.0 — Stability & Security (next)
+## v0.2.0 — Stability & Security (shipped)
 
-Fix bugs found in audit, add minimum viable auth and hardening.
-
-**Planned:**
-- [ ] API key authentication (`X-Api-Key` header, configurable via env var)
-- [ ] Fix RunStatus / CompanyStatus / IssueStatus enum mismatches between shared types and server
-- [ ] Fix double `spent_monthly_cents` update in adapter
-- [ ] Add `timeout` to shared RunStatus; update frontend badges
-- [ ] Rate limiting on all mutating endpoints (not just wake)
-- [ ] CORS configurable via `CORS_ORIGINS` env var
-- [ ] Input length validation on prompt field in wake endpoint
-- [ ] Prune expired entries from `wakeRateLimit` map
-- [ ] Fix DB auto-save interval not cleared on shutdown
+- [x] API key authentication (`X-Api-Key` header)
+- [x] RBAC: admin vs readonly API keys
+- [x] Rate limiting on mutating endpoints
+- [x] CORS configurable via `CORS_ORIGINS` env var
+- [x] Input length validation on prompt field
+- [x] Fix double `spent_monthly_cents` update in adapter
+- [x] Fix DB auto-save interval cleanup on shutdown
 
 ---
 
-## v0.3.0 — Pagination & Filtering
+## v0.3.0 — Pagination & Filtering (shipped)
 
-Make the API production-usable at scale.
-
-**Planned:**
-- [ ] Pagination on all list endpoints (`?page=&limit=` or cursor-based)
-- [ ] Filter agents by status, model, role
-- [ ] Filter runs by status, source, date range
-- [ ] `GET /api/routines` — global routines list
-- [ ] `DELETE /api/agents/:id/runs` — bulk run cleanup
-- [ ] Run TTL: configurable auto-delete runs older than N days
-- [ ] Sort options on agents and runs lists
+- [x] Pagination on all list endpoints (`?page=&limit=`)
+- [x] Filter agents by status, model, role, search
+- [x] Filter runs by status, source, date range
+- [x] `GET /api/routines` — global routines list
+- [x] `DELETE /api/agents/:id/runs` — bulk run cleanup
+- [x] Run TTL: configurable auto-delete (`RUN_TTL_DAYS`)
+- [x] Sort options on agents and runs lists
 
 ---
 
-## v0.4.0 — Observability
+## v0.4.0 — Observability, Multi-Adapter & Governance (shipped)
 
-Structured logs, metrics, and operational visibility.
-
-**Planned:**
-- [ ] Structured JSON logging with log levels (debug/info/warn/error)
-- [ ] Request-ID correlation header (`X-Request-Id`)
-- [ ] `GET /api/metrics` — Prometheus-compatible counters (runs total, runs by status, tokens used)
-- [ ] Log rotation: cap `log_excerpt` size per run; purge old run logs on a schedule
-- [ ] Dashboard: cost-over-time chart with per-agent breakdown (currently per-model)
-- [ ] Dashboard: failed run alerts panel
-
----
-
-## v0.5.0 — Multi-Adapter Support
-
-Allow agents to use adapters other than Claude CLI.
-
-**Planned:**
-- [ ] Adapter interface: define `RunAdapter` interface in shared package
-- [ ] `openai` adapter (GPT-4o, GPT-4-mini)
-- [ ] `anthropic-api` adapter (direct API, no CLI dependency)
-- [ ] `mock` adapter for testing (immediate success/failure, no subprocess)
-- [ ] Adapter config validation at agent creation time
-- [ ] Hot-swap adapter without deleting agent
+- [x] Structured JSON logging with configurable `LOG_LEVEL`
+- [x] `X-Request-Id` correlation header
+- [x] Prometheus-compatible metrics at `/api/metrics`
+- [x] Multi-adapter: Claude CLI, Anthropic API, OpenAI, Mock
+- [x] Structured output parsing with confidence scoring
+- [x] Context capsules (static, dynamic, composite) with versioning
+- [x] Daily digest auto-generation (23:00 UTC)
+- [x] Approval gates (pending/approved/rejected workflow)
+- [x] Cross-agent signal bus (typed signals, consume/unconsumed tracking)
+- [x] Wake chains (agent-to-agent triggering, max depth 5)
+- [x] Company templates (import/export, 3 built-in templates)
+- [x] Webhooks with HMAC signature
+- [x] Audit log
+- [x] CLI: `npx agist setup/start/status/logs`
+- [x] Docker + Docker Compose + Caddy reverse proxy
+- [x] 780+ unit/integration tests + 59 E2E tests
 
 ---
 
-## v0.6.0 — DB & Backup Hardening
+## v0.5.0 — Agent Intelligence & Write Discipline (shipped)
 
-Replace sql.js with better-sqlite3 and add backup strategy.
-
-**Planned:**
-- [ ] Migrate from sql.js (WebAssembly) to better-sqlite3 (native, synchronous, non-blocking)
-- [ ] Scheduled DB backup: copy `data.db` to `data.db.bak.YYYY-MM-DD` daily
-- [ ] `GET /api/admin/backup` — manual trigger for DB snapshot download
-- [ ] DB migration system: versioned SQL migration files instead of idempotent CREATE IF NOT EXISTS
-- [ ] Extract `packages/db/` query layer as the canonical DB interface (eliminate inline queries in server routes)
-
----
-
-## v0.7.0 — CLI & npx Setup
-
-Make Agist installable in one command.
-
-**Planned:**
-- [ ] `packages/cli/` — `npx agist` command
-- [ ] `npx agist setup` — interactive wizard (creates `~/.agist/config.json`, asks for API keys)
-- [ ] `npx agist start` — starts backend and opens dashboard
-- [ ] `npx agist status` — show running agents and last run times
-- [ ] `npx agist logs <agentId>` — tail live logs in terminal
-- [ ] Published to npm as `agist`
+- [x] Agent permission model (autonomous / supervised / readonly / custom)
+- [x] Permission inheritance: Company > Agent
+- [x] Auto-gate creation for supervised agents on destructive actions
+- [x] Write discipline: signal dedup, content-hash guard, output quality gate
+- [x] Capsule staleness tracking with human-readable labels
+- [x] Capsule manifest (pointer-based index sorted by priority)
+- [x] Memory consolidation engine (gate-stack scheduler: 24h + 5 runs + lock)
+- [x] Capsule version pruning (keep last 10, older replaced with pointer)
+- [x] Digest compaction (>30 days to summary-only)
+- [x] Run log tiering (7d full / 30d truncated / 30+d metadata)
+- [x] Silent system runs (hidden from dashboard by default)
+- [x] Standardized `AdapterDef` interface
+- [x] Budget cache + webhook cache for scheduler performance
+- [x] Mutual exclusion between manual and auto capsule updates
+- [x] Audit log with decision reasons
+- [x] E2E test DB isolation (temp DB per test run)
+- [x] Agent activity feed on dashboard
+- [x] 782+ tests
 
 ---
 
-## v0.8.0 — Projects & Hierarchies
+## v0.6.0 — Visual Workflows & Agent Chains (next)
 
-Multi-team, multi-project support.
-
-**Planned:**
-- [ ] Projects table (a company can have multiple projects)
-- [ ] Agent `reportsTo` hierarchy enforced in API (currently only stored, not validated)
-- [ ] Issue `projectId` field is stored but no project CRUD exists — implement full project endpoints
-- [ ] Agent groups / teams (label-based grouping within a company)
-- [ ] Project-scoped routines
+- [ ] Visual workflow builder (drag-and-drop agent chains)
+- [ ] Conditional wake: if agent A output contains X, wake agent B
+- [ ] Parallel execution: run multiple agents concurrently
+- [ ] Workflow templates (predefined multi-agent pipelines)
+- [ ] Workflow run history with per-step status
 
 ---
 
-## v0.9.0 — Webhooks & Integrations
+## v0.7.0 — Multi-User & Teams
 
-Push events to external systems.
-
-**Planned:**
-- [ ] Webhooks: POST to user-configured URL on run events (run.completed, agent.error)
-- [ ] Slack integration: post run summaries to a channel
-- [ ] GitHub integration: create issues on agent failure
-- [ ] Email notifications on critical agent errors
-- [ ] Zapier/n8n compatible webhook format
+- [ ] Multi-user authentication (email/password + invite flow)
+- [ ] Team roles: owner, admin, member, viewer
+- [ ] Per-user audit trail
+- [ ] SSO / OAuth integration
+- [ ] User-scoped API keys
 
 ---
 
-## v1.0.0 — Production-Ready
+## v0.8.0 — Capsule Intelligence
 
-General availability release with full documentation and test coverage.
+- [ ] LLM-powered capsule consolidation (Anthropic API)
+- [ ] Capsule relevance-gated injection (top-N per run)
+- [ ] Capsule versioning UI in dashboard
+- [ ] Cross-company capsule sharing
+- [ ] Capsule templates
 
-**Planned:**
-- [ ] End-to-end test suite (Playwright for dashboard, HTTP tests for API)
-- [ ] Unit tests for scheduler, adapter, DB queries (80%+ coverage)
-- [ ] Full OpenAPI 3.1 spec (`GET /api/openapi.json`)
-- [ ] Docker image: `ghcr.io/tahakotil/agist:latest`
-- [ ] Docker Compose: agist + optional Caddy reverse proxy
-- [ ] HTTPS support in standalone mode (Let's Encrypt via Caddy)
-- [ ] Role-based access: admin vs read-only API keys
-- [ ] Complete user-facing documentation (docs site)
-- [ ] Changelog maintained in `CHANGELOG.md`
+---
+
+## v0.9.0 — Marketplace & Extensibility
+
+- [ ] Public agent marketplace / template registry
+- [ ] Plugin system for custom adapters
+- [ ] Custom webhook event types
+- [ ] Agent SDK (programmatic agent creation)
+
+---
+
+## v1.0.0 — Production-Ready GA
+
+- [ ] better-sqlite3 migration (native, synchronous)
+- [ ] DB migration system (versioned SQL files)
+- [ ] Scheduled DB backups
+- [ ] Complete user-facing documentation site
 - [ ] GitHub Releases with signed tarballs
+- [ ] 95%+ test coverage
