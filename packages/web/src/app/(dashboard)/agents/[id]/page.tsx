@@ -222,7 +222,8 @@ export default function AgentDetailPage({ params }: PageProps) {
     enabled: !!id,
   })
 
-  const currentCapsule = capsuleText ?? contextData?.capsule ?? ""
+  const apiCapsule = contextData?.capsule?.replace(/\\n/g, '\n') ?? ""
+  const currentCapsule = capsuleText ?? apiCapsule
 
   async function handleSaveCapsule() {
     setSavingCapsule(true)
@@ -531,6 +532,11 @@ export default function AgentDetailPage({ params }: PageProps) {
               <code className="font-mono text-slate-400 bg-slate-800 px-1 py-0.5 rounded text-[11px]">__agist_context_update__</code>{" "}
               followed by new content. Max 10,000 characters.
             </p>
+            {currentCapsule && capsuleText === null && (
+              <pre className="whitespace-pre-wrap text-xs text-slate-300 font-mono bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-48 overflow-y-auto leading-relaxed">
+                {currentCapsule}
+              </pre>
+            )}
             <Textarea
               value={currentCapsule}
               onChange={(e) => setCapsuleText(e.target.value)}

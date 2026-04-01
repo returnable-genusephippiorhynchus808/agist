@@ -31,7 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { relativeTime, formatDuration, formatCost, cn } from "@/lib/utils"
-import { Bot, Play, CheckCircle, DollarSign, AlertTriangle, BookOpen, ArrowRight } from "lucide-react"
+import { Bot, Play, CheckCircle, DollarSign, AlertTriangle, BookOpen, ArrowRight, Activity, XCircle, FileText } from "lucide-react"
 import { toast } from "sonner"
 
 const RUN_STATUS_BADGE: Record<string, string> = {
@@ -295,6 +295,78 @@ export default function DashboardPage() {
           </Card>
         )
       })()}
+
+      {/* Agent Activity Feed */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+            <Activity className="h-5 w-5 text-emerald-400" />
+            Agent Activity
+          </h2>
+          <Link href="/runs" className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors">
+            View all runs <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+        <p className="text-sm text-slate-500 mb-3">Latest actions and reports from your agents</p>
+        <div className="space-y-2">
+          {runsLoading && !runsError ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-16 rounded-lg bg-slate-900 border border-slate-800 animate-pulse" />
+            ))
+          ) : runs && runs.length > 0 ? (
+            runs.slice(0, 10).map((run) => (
+              <Link key={run.id} href={`/runs/${run.id}`}>
+                <div className="flex items-start gap-4 p-3 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 transition-all hover:-translate-y-0.5 hover:shadow-md group">
+                  <div className="flex-shrink-0 mt-0.5">
+                    {run.status === "completed" ? (
+                      <CheckCircle className="h-4 w-4 text-emerald-400" />
+                    ) : run.status === "failed" ? (
+                      <XCircle className="h-4 w-4 text-red-400" />
+                    ) : run.status === "running" ? (
+                      <Play className="h-4 w-4 text-blue-400 animate-pulse" />
+                    ) : (
+                      <FileText className="h-4 w-4 text-slate-600" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-slate-200 group-hover:text-blue-400 transition-colors">
+                        {run.agentName}
+                      </span>
+                      <Badge
+                        className={cn(
+                          "text-[10px] px-1.5 py-0 h-4 border capitalize",
+                          RUN_STATUS_BADGE[run.status] ?? "bg-slate-500/15 text-slate-400"
+                        )}
+                      >
+                        {run.status}
+                      </Badge>
+                      <span className="text-xs text-slate-500">{relativeTime(run.startedAt)}</span>
+                      <span className="text-xs font-mono text-slate-500 ml-auto">{formatCost(run.cost)}</span>
+                    </div>
+                    {run.error && (
+                      <p className="text-xs text-red-400 mt-0.5 truncate">{run.error.slice(0, 150)}</p>
+                    )}
+                    {!run.error && run.logExcerpt && (
+                      <p className="text-xs text-slate-500 mt-0.5 truncate font-mono">
+                        {run.logExcerpt.slice(0, 200)}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex-shrink-0 text-xs font-mono text-slate-600">
+                    {formatDuration(run.durationMs)}
+                  </div>
+                </div>
+              </Link>
+            ))
+          ) : (
+            <div className="flex flex-col items-center justify-center h-32 rounded-lg border border-dashed border-slate-800 text-slate-600 text-sm gap-2">
+              <Activity className="h-6 w-6 text-slate-700" />
+              <span>No agent activity yet</span>
+            </div>
+          )}
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         <Card className="xl:col-span-3 bg-slate-900 border-slate-800">
