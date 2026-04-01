@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { buttonVariants, Button } from "@/components/ui/button"
 import { OrgChart } from "@/components/org-chart"
 import { AgentCard } from "@/components/agent-card"
-import { Building2, Clock, DollarSign, Bot, ArrowLeft, Radio, CheckCircle2, XCircle, Loader2, PauseCircle, Download } from "lucide-react"
+import { Building2, Clock, DollarSign, Bot, ArrowLeft, Radio, CheckCircle2, XCircle, Loader2, PauseCircle, Download, FileText } from "lucide-react"
 import { formatCost, relativeTime, cn } from "@/lib/utils"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -42,6 +42,27 @@ export default function CompanyDetailPage({ params }: PageProps) {
     queryKey: ["companies", id, "signals"],
     queryFn: () => getCompanySignals(id, { limit: 50 }),
     refetchInterval: 15_000,
+  })
+
+  const { data: agentRuns } = useQuery<Record<string, Run>>({
+    queryKey: ["company-agent-runs", id],
+    queryFn: async () => {
+      if (!agents?.length) return {}
+      const runMap: Record<string, Run> = {}
+      await Promise.all(
+        agents.map(async (agent: Agent) => {
+          try {
+            const res = await getAgentRuns(agent.id, { limit: 1 })
+            if (res.runs[0]) runMap[agent.id] = res.runs[0]
+          } catch {
+            // agent may have no runs — skip
+          }
+        })
+      )
+      return runMap
+    },
+    enabled: !!agents?.length,
+    staleTime: 30_000,
   })
 
   const [exporting, setExporting] = useState(false)
@@ -295,6 +316,88 @@ export default function CompanyDetailPage({ params }: PageProps) {
             {agents.map((agent) => (
               <FleetAgentCard key={agent.id} agent={agent} companyId={id} />
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* Agent Reports */}
+      {agents && agents.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+            <FileText className="h-5 w-5 text-blue-400" />
+            Agent Reports
+          </h2>
+          <div className="space-y-3">
+            {agents.map((agent) => {
+              const lastRun = agentRuns?.[agent.id]
+              const capsule = agent.contextCapsule?.replace(/\n/g, "\n") || ""
+              const statusBadgeCls =
+                agent.status === "running"  ? "bg-blue-500/15 text-blue-400 border border-blue-500/30" :
+                agent.status === "error"    ? "bg-red-500/15 text-red-400 border border-red-500/30" :
+                agent.status === "paused"   ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" :
+                                              "bg-slate-500/15 text-slate-400 border border-slate-500/30"
+              return (
+                <Card key={agent.id} className="bg-slate-900 border-slate-800">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <Link
+                        href={`/agents/${agent.id}`}
+                        className="flex items-center gap-2 hover:text-blue-400 transition-colors"
+                      >
+                        <Bot className="h-4 w-4 text-slate-400" />
+                        <span className="font-medium text-slate-100">{agent.name}</span>
+                        <Badge variant="outline" className="text-[10px]">{agent.role}</Badge>
+                      </Link>
+                      <Badge className={statusBadgeCls}>{agent.status}</Badge>
+                    </div>
+
+                    {lastRun ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-3 text-xs text-slate-400">
+                          <span className="flex items-center gap-1">
+                            {lastRun.status === "completed" ? (
+                              <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                            ) : lastRun.status === "failed" || lastRun.status === "timeout" ? (
+                              <XCircle className="h-3 w-3 text-red-400" />
+                            ) : lastRun.status === "running" ? (
+                              <Loader2 className="h-3 w-3 text-blue-400 animate-spin" />
+                            ) : null}
+                            {lastRun.status}
+                          </span>
+                          <span>{relativeTime(lastRun.finishedAt || lastRun.startedAt || lastRun.createdAt)}</span>
+                          {lastRun.costCents > 0 && (
+                            <span className="font-mono">${(lastRun.costCents / 100).toFixed(2)}</span>
+                          )}
+                          {lastRun.durationMs != null && lastRun.durationMs > 0 && (
+                            <span className="text-slate-600">{(lastRun.durationMs / 1000).toFixed(1)}s</span>
+                          )}
+                        </div>
+                        {lastRun.logExcerpt && (
+                          <pre className="text-[11px] text-slate-500 font-mono bg-slate-950 rounded p-2 max-h-20 overflow-y-auto whitespace-pre-wrap leading-relaxed">
+                            {lastRun.logExcerpt.slice(0, 300)}
+                          </pre>
+                        )}
+                        {lastRun.error && (
+                          <p className="text-[11px] text-red-400 font-mono bg-red-950/30 rounded p-2">
+                            {lastRun.error.slice(0, 200)}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-600 italic">No runs yet</p>
+                    )}
+
+                    {capsule && (
+                      <div className="mt-2 pt-2 border-t border-slate-800">
+                        <p className="text-[11px] text-slate-500 line-clamp-2">
+                          <span className="text-slate-600">Context:</span> {capsule.slice(0, 150)}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         </section>
       )}

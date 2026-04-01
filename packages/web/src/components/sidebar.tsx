@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   ClipboardList,
   BookOpen,
+  Activity,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getCompanies, getPendingGates } from "@/lib/api"
@@ -30,6 +31,7 @@ const navItems = [
   { href: "/agents", label: "Agents", icon: Bot },
   { href: "/routines", label: "Routines", icon: Timer },
   { href: "/runs", label: "Runs", icon: Play },
+  { href: "/activity", label: "Activity", icon: Activity },
   { href: "/issues", label: "Issues", icon: AlertCircle },
   { href: "/workspace", label: "Workspace", icon: FolderOpen },
   { href: "/templates", label: "Templates", icon: FileCode2 },

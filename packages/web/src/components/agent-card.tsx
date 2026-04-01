@@ -3,13 +3,23 @@
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { relativeTime, cn } from "@/lib/utils"
+import { relativeTime, formatCost, cn } from "@/lib/utils"
 import type { Agent } from "@/lib/api"
-import { Play, Pause, FileText, Clock } from "lucide-react"
+import { Play, Pause, FileText, Clock, CheckCircle, XCircle } from "lucide-react"
 import Link from "next/link"
+
+interface LastRun {
+  status: string
+  finishedAt?: string | null
+  startedAt?: string
+  logExcerpt?: string
+  cost: number
+  error?: string | null
+}
 
 interface AgentCardProps {
   agent: Agent
+  lastRun?: LastRun | null
   onWake?: (id: string) => void
   onPause?: (id: string) => void
 }
@@ -42,7 +52,7 @@ const STATUS_DOT: Record<string, { color: string; animated: boolean }> = {
   paused: { color: "bg-amber-400", animated: false },
 }
 
-export function AgentCard({ agent, onWake, onPause }: AgentCardProps) {
+export function AgentCard({ agent, lastRun, onWake, onPause }: AgentCardProps) {
   const dot = STATUS_DOT[agent.status] ?? { color: "bg-slate-400", animated: false }
   const mStyle = modelStyle(agent.model)
 
@@ -99,6 +109,50 @@ export function AgentCard({ agent, onWake, onPause }: AgentCardProps) {
           <Clock className="h-3 w-3 flex-shrink-0" />
           <span className="text-[11px]">Updated {relativeTime(agent.updatedAt)}</span>
         </div>
+
+        {lastRun ? (
+          <div className="mt-3 pt-3 border-t border-slate-800 space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="flex items-center gap-1.5">
+                {lastRun.status === "completed" ? (
+                  <CheckCircle className="h-3 w-3 text-emerald-400 flex-shrink-0" />
+                ) : lastRun.status === "failed" || lastRun.status === "timeout" ? (
+                  <XCircle className="h-3 w-3 text-red-400 flex-shrink-0" />
+                ) : lastRun.status === "running" ? (
+                  <Play className="h-3 w-3 text-blue-400 flex-shrink-0 animate-pulse" />
+                ) : (
+                  <Clock className="h-3 w-3 text-slate-500 flex-shrink-0" />
+                )}
+                <span
+                  className={cn(
+                    "capitalize",
+                    lastRun.status === "completed" && "text-emerald-400",
+                    (lastRun.status === "failed" || lastRun.status === "timeout") && "text-red-400",
+                    lastRun.status === "running" && "text-blue-400",
+                    lastRun.status !== "completed" && lastRun.status !== "failed" && lastRun.status !== "timeout" && lastRun.status !== "running" && "text-slate-400"
+                  )}
+                >
+                  {lastRun.status === "running"
+                    ? "Running now"
+                    : `${lastRun.status.charAt(0).toUpperCase() + lastRun.status.slice(1)} ${relativeTime(lastRun.finishedAt ?? lastRun.startedAt)}`}
+                </span>
+              </span>
+              <span className="text-slate-500 font-mono">{formatCost(lastRun.cost)}</span>
+            </div>
+            {lastRun.error && (
+              <p className="text-[11px] text-red-400 font-mono line-clamp-1">
+                {lastRun.error.slice(0, 100)}
+              </p>
+            )}
+            {!lastRun.error && lastRun.logExcerpt && (
+              <p className="text-[11px] text-slate-500 font-mono line-clamp-2 leading-relaxed">
+                {lastRun.logExcerpt.slice(0, 120)}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="mt-3 pt-3 border-t border-slate-800 text-xs text-slate-600 italic">No runs yet</p>
+        )}
 
         <div className="flex items-center gap-1.5 pt-1">
           <Button

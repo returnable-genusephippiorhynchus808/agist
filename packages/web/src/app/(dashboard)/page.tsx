@@ -100,6 +100,16 @@ export default function DashboardPage() {
     }
   }
 
+  // Build a map of agentId → most recent run (runs are returned newest-first)
+  const lastRunByAgent = new Map<string, Run>()
+  if (runs) {
+    for (const run of runs) {
+      if (!lastRunByAgent.has(run.agentId)) {
+        lastRunByAgent.set(run.agentId, run)
+      }
+    }
+  }
+
   // When backend is down, show zeros instead of loading forever
   const isOffline = statsError && agentsError
   const totalAgents = stats?.totalAgents ?? agents?.length ?? 0
@@ -231,7 +241,7 @@ export default function DashboardPage() {
         ) : agents && agents.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {agents.map((agent) => (
-              <AgentCard key={agent.id} agent={agent} onWake={handleWake} onPause={handlePause} />
+              <AgentCard key={agent.id} agent={agent} lastRun={lastRunByAgent.get(agent.id) ?? null} onWake={handleWake} onPause={handlePause} />
             ))}
           </div>
         ) : (
